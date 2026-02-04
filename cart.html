@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Giỏ hàng của bạn</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body class="bg-light">
+
+    <div class="container mt-5">
+        <h2 class="mb-4"><i class="fas fa-shopping-cart"></i> Giỏ hàng</h2>
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Sản phẩm</th>
+                            <th>Đơn giá</th>
+                            <th>Số lượng</th>
+                            <th>Thành tiền</th>
+                            <th>Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cart-body">
+                    </tbody>
+                </table>
+                <div class="text-end mt-3">
+                    <h4>Tổng cộng: <span id="cart-total" class="text-danger fw-bold">0</span> đ</h4>
+                    <a href="product.html" class="btn btn-outline-secondary">Tiếp tục mua</a>
+                    <button class="btn btn-primary btn-lg ms-2">Thanh toán</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            loadCart();
+
+            function loadCart() {
+                $.getJSON('api/cart.php?action=view', function (res) {
+                    let html = '';
+                    let total = 0;
+
+                    if (res.data.length === 0) {
+                        $('#cart-body').html('<tr><td colspan="5" class="text-center">Giỏ hàng trống trơn!</td></tr>');
+                        $('#cart-total').text('0');
+                        return;
+                    }
+
+                    res.data.forEach(item => {
+                        let subtotal = item.price * item.quantity;
+                        total += subtotal;
+                        html += `
+                        <tr>
+                            <td>
+                                <img src="${item.image}" style="width: 50px; height: 50px; object-fit: cover;" class="rounded me-2">
+                                ${item.name}
+                            </td>
+                            <td>${Number(item.price).toLocaleString()} đ</td>
+                            <td>
+                                <input type="number" class="form-control update-qty" style="width: 80px" 
+                                       data-id="${item.id}" value="${item.quantity}" min="1">
+                            </td>
+                            <td class="fw-bold">${Number(subtotal).toLocaleString()} đ</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger remove-item" data-id="${item.id}"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                    });
+                    $('#cart-body').html(html);
+                    $('#cart-total').text(total.toLocaleString());
+                });
+            }
+
+            // Xử lý nút xóa
+            $(document).on('click', '.remove-item', function () {
+                let id = $(this).data('id');
+                if (confirm('Xóa món này hả?')) {
+                    $.post('api/cart.php?action=remove', { id: id }, function () {
+                        loadCart();
+                    });
+                }
+            });
+
+            // Xử lý sửa số lượng
+            $(document).on('change', '.update-qty', function () {
+                let id = $(this).data('id');
+                let qty = $(this).val();
+                $.post('api/cart.php?action=update', { id: id, quantity: qty }, function () {
+                    loadCart();
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

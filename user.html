@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Người dùng - Final Update</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        .pagination .page-link {
+            cursor: pointer;
+        }
+
+        .table-responsive {
+            min-height: 300px;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+
+    <div class="container mt-4">
+        <h2 class="text-center mb-4 text-primary fw-bold">HỆ THỐNG QUẢN LÝ NGƯỜI DÙNG</h2>
+
+        <div class="card mb-4 shadow-sm border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0" id="formTitle">Thêm Người Dùng Mới</h5>
+            </div>
+            <div class="card-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Tên đăng nhập</label>
+                            <input type="text" class="form-control" id="username" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Email</label>
+                            <input type="email" class="form-control" id="email" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Mật khẩu</label>
+                            <input type="password" class="form-control" id="password" placeholder="Bỏ trống nếu giữ cũ">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Vai trò</label>
+                            <select class="form-select" id="role">
+                                <option value="1">Admin</option>
+                                <option value="2" selected>Nhân viên</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 align-self-end">
+                            <button type="submit" class="btn btn-success w-100" id="btnSave">Lưu Dữ Liệu</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6 offset-md-6">
+                        <div class="input-group">
+                            <input type="text" id="searchInput" class="form-control"
+                                placeholder="Tìm theo tên hoặc email...">
+                            <button class="btn btn-primary" type="button" id="btnSearch">Tìm ngay</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-dark text-center">
+                            <tr>
+                                <th>ID</th>
+                                <th>Tên đăng nhập</th>
+                                <th>Email</th>
+                                <th>Vai trò</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody" class="text-center">
+                        </tbody>
+                    </table>
+                </div>
+
+                <nav aria-label="Page navigation" class="mt-3">
+                    <ul class="pagination justify-content-center" id="paginationList">
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+
+        $(document).ready(function () {
+            // Khởi tạo: Load trang 1
+            loadUsers();
+
+            // 1. Hàm Load Dữ liệu (Phân trang + Tìm kiếm)
+            function loadUsers(page = 1, keyword = '') {
+                currentPage = page;
+                $.ajax({
+                    url: 'api/user_lists.php',
+                    type: 'GET',
+                    data: { page: page, search: keyword },
+                    success: function (res) {
+                        let data = JSON.parse(res);
+                        renderTable(data.users);
+                        renderPagination(data.totalPages, keyword);
+                    },
+                    error: function () { alert("Lỗi kết nối API!"); }
+                });
+            }
+
+            // 2. Render dữ liệu vào Bảng
+            function renderTable(users) {
+                let html = '';
+                if (users.length === 0) {
+                    html = '<tr><td colspan="5" class="text-center">Không tìm thấy ai cả ông Danh ơi!</td></tr>';
+                } else {
+                    users.forEach(u => {
+                        html += `
+                        <tr>
+                            <td>${u.id}</td>
+                            <td>${u.username}</td>
+                            <td>${u.email || 'N/A'}</td>
+                            <td><span class="badge ${u.role_id == 1 ? 'bg-danger' : 'bg-info'}">${u.role_name}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-warning me-1" onclick="editUser(${u.id}, '${u.username}', '${u.email}', ${u.role_id})">Sửa</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Xóa</button>
+                            </td>
+                        </tr>`;
+                    });
+                }
+                $('#userTableBody').html(html);
+            }
+
+            // 3. Render các nút Phân trang
+            function renderPagination(totalPages, keyword) {
+                let html = '';
+                for (let i = 1; i <= totalPages; i++) {
+                    html += `
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" onclick="handlePageChange(${i}, '${keyword}')">${i}</a>
+                    </li>`;
+                }
+                $('#paginationList').html(html);
+            }
+
+            // 4. Xử lý Tìm kiếm
+            $('#btnSearch').on('click', function () {
+                loadUsers(1, $('#searchInput').val());
+            });
+
+            $('#searchInput').on('keyup', function (e) {
+                if (e.key === "Enter" || $(this).val() === "") {
+                    loadUsers(1, $(this).val());
+                }
+            });
+
+            // 5. Xử lý Thêm/Sửa
+            $('#userForm').on('submit', function (e) {
+                e.preventDefault();
+                let id = $('#userId').val();
+                let url = id === "" ? 'api/user_add.php' : 'api/user_update.php';
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: {
+                        id: id,
+                        username: $('#username').val(),
+                        email: $('#email').val(),
+                        password: $('#password').val(),
+                        role_id: $('#role').val()
+                    },
+                    success: function (res) {
+                        let data = JSON.parse(res);
+                        alert(data.message);
+                        if (data.status === 'success') {
+                            $('#userForm')[0].reset();
+                            $('#userId').val('');
+                            $('#formTitle').text('Thêm Người Dùng Mới');
+                            loadUsers(currentPage, $('#searchInput').val());
+                        }
+                    }
+                });
+            });
+        });
+
+        // Các hàm global gọi từ HTML
+        function handlePageChange(page, keyword) {
+            // Gọi lại loadUsers khi bấm nút phân trang
+            $(document).ready(function () {
+                // Kỹ thuật này giúp tránh lỗi scope
+                let currentSearch = $('#searchInput').val();
+                // loadUsers được định nghĩa trong $(document).ready nên cần cẩn thận
+            });
+            // Ở bản này tôi đưa loadUsers ra ngoài hoặc gọi trực tiếp:
+            location.reload(); // Cách nhanh nhất nếu code lồng nhau, hoặc tối ưu hàm loadUsers ra global
+        }
+
+        function editUser(id, username, email, role_id) {
+            $('#userId').val(id);
+            $('#username').val(username);
+            $('#email').val(email);
+            $('#password').val(''); // Không đổ pass cũ vào để bảo mật
+            $('#role').val(role_id);
+            $('#formTitle').text('Chỉnh Sửa Người Dùng: ' + username);
+            window.scrollTo(0, 0);
+        }
+
+        function deleteUser(id) {
+            if (confirm('Chắc chưa? Vả ID ' + id + ' bay màu đấy!')) {
+                $.post('api/user_delete.php', { id: id }, function (res) {
+                    alert(JSON.parse(res).message);
+                    location.reload();
+                });
+            }
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

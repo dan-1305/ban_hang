@@ -65,13 +65,22 @@
             function loadProducts(page = 1, search = '') {
                 currentPage = page;
                 $.ajax({
-                    url: 'api/products.php', // File PHP tôi vừa đưa ông lúc nãy
+                    url: 'api/products.php',
                     type: 'GET',
                     data: { page: page, search: search },
-                    success: function (res) {
-                        let data = JSON.parse(res);
-                        renderProducts(data.products);
-                        renderPagination(data.totalPages, search);
+                    dataType: 'json', // Ép kiểu dữ liệu trả về là JSON
+                    success: function (data) {
+                        // Không dùng JSON.parse(data) ở đây nữa!
+                        if (data.error) {
+                            $('#productContainer').html(`<div class="col-12 text-center text-danger">Lỗi: ${data.error}</div>`);
+                        } else {
+                            renderProducts(data.products);
+                            renderPagination(data.totalPages, search, page);
+                        }
+                    },
+                    error: function (xhr) {
+                        console.error("Lỗi hệ thống: ", xhr.responseText);
+                        $('#productContainer').html('<div class="col-12 text-center text-danger">Không thể kết nối API. Check lại XAMPP/db.php!</div>');
                     }
                 });
             }
